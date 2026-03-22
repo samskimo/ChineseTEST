@@ -8,7 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 2. 載入 React 核心 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/Highcharts/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <!-- 3. 載入 Babel 用於解析 JSX -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
@@ -22,24 +21,41 @@
         @media screen { .print-only-wrapper { display: none !important; } }
         
         @media print {
-            @page { size: A4 portrait; margin: 0 !important; }
-            html, body { 
-                height: 100% !important; margin: 0 !important; padding: 0 !important; 
-                overflow: hidden !important; background: white !important; 
+            @page { 
+                size: A4 portrait; 
+                margin: 0 !important; 
             }
-            #root { height: 100% !important; overflow: hidden !important; }
+            html, body { 
+                height: 100% !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                overflow: hidden !important; 
+                background: white !important; 
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            #root { height: auto !important; }
             .no-print { display: none !important; }
             .print-only-wrapper { 
-                display: flex !important; justify-content: center; align-items: flex-start;
-                width: 100vw !important; height: 100vh !important; 
-                margin: 0 !important; padding: 0 !important; background: white !important;
-                position: absolute; top: 0; left: 0;
+                display: flex !important; 
+                justify-content: center; 
+                align-items: center;
+                width: 100% !important; 
+                height: 100vh !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                background: white !important;
+                position: fixed; 
+                top: 0; 
+                left: 0;
+                z-index: 9999;
             }
+            /* 針對手機 Safari 優化的 A4 證書容器 */
             .certificate-container {
                 width: 210mm !important; 
-                height: 278mm !important; 
-                max-height: 278mm !important;
-                padding: 12mm !important; 
+                height: 270mm !important; /* 降低高度以適應行動版 Safari 的 PDF 輸出 */
+                max-height: 297mm !important;
+                padding: 10mm !important; 
                 border: 15pt solid #dc2626 !important;
                 box-sizing: border-box !important; 
                 position: relative;
@@ -48,8 +64,10 @@
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
+                break-inside: avoid;
+                page-break-inside: avoid;
+                page-break-after: avoid;
             }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
     </style>
 </head>
@@ -59,7 +77,7 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef } = React;
         
-        // 自定義 SVG 圖標組件，完全取代外部 Lucide 庫以解決載入錯誤
+        // 自定義 SVG 圖標組件
         const Icon = ({ name, size = 24, className = "" }) => {
             const icons = {
                 BookOpen: (
@@ -448,48 +466,52 @@
                             </div>
                         </div>
 
+                        {/* 證書輸出區 */}
                         <div className="print-only-wrapper">
-                            <div className="certificate-container border-[12pt] border-red-600 p-6 text-center relative flex flex-col justify-between bg-[#FCFAF0]">
+                            <div className="certificate-container border-[12pt] border-red-600 p-6 text-center relative flex flex-col justify-between bg-[#FCFAF0] box-border">
                                 <Icon name="Flower2" size={100} className="absolute top-6 left-6 opacity-20 text-red-800" />
                                 <Icon name="Sparkles" size={100} className="absolute bottom-6 right-6 opacity-20 text-amber-600" />
                                 <div className="mt-8 md:mt-10 text-slate-900">
-                                    <div className="text-red-700 font-serif text-6xl font-black mb-8 tracking-[0.4em] border-b-4 border-red-700 inline-block pb-4 px-10 uppercase font-black">闖關證書</div>
-                                    <div className="text-slate-800 text-xl md:text-2xl font-bold mt-10 md:mt-12 leading-relaxed font-serif font-bold">茲證明 <span className="text-4xl md:text-5xl border-b-2 border-slate-800 px-4 md:px-6 font-black mx-1 underline underline-offset-4">{studentInfo.name}</span> 同學<br /><br /><br />參與國文科雲端專題測驗：<br /><span className="text-red-700 font-black text-2xl md:text-3xl my-3 block tracking-wider italic">《{results.quizName}》</span>表現卓越，獲得總分 <span className="text-3xl md:text-4xl text-red-600 font-black mx-1 underline underline-offset-4">{results.score}</span> 分，<br /><br />榮獲本系統授予之最高榮譽身分：</div>
+                                    <div className="text-red-700 font-serif text-6xl font-black mb-8 tracking-[0.4em] border-b-4 border-red-700 inline-block pb-4 px-10 uppercase">闖關證書</div>
+                                    <div className="text-slate-800 text-xl md:text-2xl font-bold mt-10 md:mt-12 leading-relaxed font-serif">
+                                        茲證明 <span className="text-4xl md:text-5xl border-b-2 border-slate-800 px-4 md:px-6 font-black mx-1 underline underline-offset-4">{studentInfo.name}</span> 同學<br /><br /><br />參與國文科雲端專題測驗：<br /><span className="text-red-700 font-black text-2xl md:text-3xl my-3 block tracking-wider italic">《{results.quizName}》</span>表現卓越，獲得總分 <span className="text-3xl md:text-4xl text-red-600 font-black mx-1 underline underline-offset-4">{results.score}</span> 分，<br /><br />榮獲本系統授予之最高榮譽身分：
+                                    </div>
                                     <div className="mt-8 md:mt-10 flex flex-col items-center">
-                                        <div className={`text-3xl md:text-5xl font-black p-8 md:p-10 rounded-[2.5rem] border-[4pt] border-red-700 bg-white shadow-2xl ${rank.color} font-black`}>{rank.title}</div>
-                                        <div className="text-slate-500 text-lg md:text-xl font-bold mt-8 italic tracking-widest bg-slate-100 px-6 py-1.5 rounded-full shadow-inner font-bold font-serif">「{rank.desc}」</div>
+                                        <div className={`text-3xl md:text-5xl font-black p-8 md:p-10 rounded-[2.5rem] border-[4pt] border-red-700 bg-white shadow-2xl ${rank.color}`}>{rank.title}</div>
+                                        <div className="text-slate-500 text-lg md:text-xl font-bold mt-8 italic tracking-widest bg-slate-100 px-6 py-1.5 rounded-full shadow-inner font-serif">「{rank.desc}」</div>
                                     </div>
                                 </div>
-                                <div className="flex justify-between items-end border-t-2 border-slate-200 pt-6 px-4 md:px-10 mb-4 text-slate-400 font-bold text-xs md:text-sm uppercase font-serif font-black">
-                                    <div className="tracking-widest font-black">{results.date}</div>
+                                <div className="flex justify-between items-end border-t-2 border-slate-200 pt-6 px-4 md:px-10 mb-4 text-slate-400 font-bold text-xs md:text-sm uppercase font-serif">
+                                    <div className="tracking-widest">{results.date}</div>
                                     <div className="text-right">
-                                        <div className="text-[9pt] tracking-widest font-bold uppercase mb-1 opacity-60 font-black">Design & Development</div>
-                                        <div className="text-slate-900 font-black text-xs md:text-base tracking-tighter font-black">高雄市立三民家商國文科黃一軒設計</div>
+                                        <div className="text-[9pt] tracking-widest font-bold uppercase mb-1 opacity-60">Design & Development</div>
+                                        <div className="text-slate-900 font-black text-xs md:text-base tracking-tighter">高雄市立三民家商國文科黃一軒設計</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
+                        {/* 分析詳情 */}
                         <div className="no-print mt-16 pt-16 border-t border-slate-200 text-slate-900 text-left">
-                            <h3 className="text-2xl font-black mb-8 flex items-center gap-2 font-serif tracking-widest italic border-l-8 border-red-600 pl-4 uppercase text-slate-900 font-bold"><Icon name="ScrollText" size={24} /> 測驗詳細分析 (僅供線上複習)</h3>
+                            <h3 className="text-2xl font-black mb-8 flex items-center gap-2 font-serif tracking-widest italic border-l-8 border-red-600 pl-4 uppercase"><Icon name="ScrollText" size={24} /> 測驗詳細分析 (僅供線上複習)</h3>
                             <div className="space-y-10">{results.detailsData.map((item, idx) => (
-                                <div key={idx} className="relative border-b-2 border-slate-100 pb-10 last:border-0 animate-in fade-in duration-500 text-slate-900">
+                                <div key={idx} className="relative border-b-2 border-slate-100 pb-10 last:border-0 animate-in fade-in duration-500">
                                     <div className="flex items-start gap-4 md:gap-8">
                                         <span className={`w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-2xl flex items-center justify-center font-mono text-lg md:text-2xl font-black shadow-sm ${item.isCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{idx + 1}</span>
-                                        <div className="flex-1 text-slate-900 font-bold">
-                                            <p className="text-xl md:text-2xl font-black mb-6 leading-relaxed tracking-tight text-slate-900">{item.stem}</p>
-                                            <div className="grid grid-cols-1 gap-3 mb-6 font-bold text-slate-900">
+                                        <div className="flex-1">
+                                            <p className="text-xl md:text-2xl font-black mb-6 leading-relaxed tracking-tight">{item.stem}</p>
+                                            <div className="grid grid-cols-1 gap-3 mb-6 font-bold">
                                                 {['A', 'B', 'C', 'D'].map(o => (
-                                                    <div key={o} className={`p-4 rounded-xl text-lg border-2 flex items-center justify-between font-bold ${item.answer === o ? 'bg-green-50 border-green-500 text-green-700' : item.studentAnswer === o ? 'bg-red-50 border-red-500 text-red-700' : 'bg-white border-slate-100 shadow-sm text-slate-900'}`}>
+                                                    <div key={o} className={`p-4 rounded-xl text-lg border-2 flex items-center justify-between ${item.answer === o ? 'bg-green-50 border-green-500 text-green-700' : item.studentAnswer === o ? 'bg-red-50 border-red-500 text-red-700' : 'bg-white border-slate-100 shadow-sm'}`}>
                                                         <span>({o}) {item?.options?.[o]}</span>
-                                                        <div className="flex gap-2 text-xs shrink-0 font-black font-bold">
+                                                        <div className="flex gap-2 text-xs shrink-0 font-black">
                                                             {item.studentAnswer === o && <span className="bg-red-600 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">您的回答</span>}
                                                             {item.answer === o && <span className="bg-green-600 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">正確答案</span>}
                                                         </div>
                                                     </div>
                                                 ))}
                                             </div>
-                                            {!item.isCorrect && (<div className="mt-4 p-6 bg-amber-50 rounded-2xl border-l-8 border-red-600 shadow-inner font-bold border-amber-100 text-slate-800 text-left font-bold"><span className="text-red-700 font-black block mb-2 uppercase text-sm tracking-widest flex items-center gap-2 font-serif font-bold"><Icon name="Sparkles" size={18} /> 解析說明</span><p className="italic text-lg leading-relaxed font-bold font-serif">{item.explanation}</p></div>)}
+                                            {!item.isCorrect && (<div className="mt-4 p-6 bg-amber-50 rounded-2xl border-l-8 border-red-600 shadow-inner border-amber-100 text-slate-800 text-left"><span className="text-red-700 font-black block mb-2 uppercase text-sm tracking-widest flex items-center gap-2"><Icon name="Sparkles" size={18} /> 解析說明</span><p className="italic text-lg leading-relaxed font-serif">{item.explanation}</p></div>)}
                                         </div>
                                     </div>
                                 </div>
@@ -513,7 +535,7 @@
                     )}
                     <footer className="w-full text-center py-8 md:py-12 text-slate-400 font-bold border-t border-slate-200/50 relative z-10 no-print">
                         <div className="flex items-center justify-center gap-3 mb-2 opacity-50"><Icon name="Flower2" size={16} className="text-red-500" /><span className="text-xs tracking-widest uppercase font-bold">Literature Quiz System</span><Icon name="Flower2" size={16} className="text-red-500" /></div>
-                        <p className="text-sm md:text-lg tracking-widest font-black text-slate-900/40 uppercase font-serif font-bold">高雄市立三民家商國文科黃一軒設計</p>
+                        <p className="text-sm md:text-lg tracking-widest font-black text-slate-900/40 uppercase font-serif">高雄市立三民家商國文科黃一軒設計</p>
                     </footer>
                 </div>
             );
