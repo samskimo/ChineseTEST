@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>國文科即時測驗系統 Pro</title>
+    <!-- 1. 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 2. 載入 React 核心 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/Highcharts/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <!-- 3. 載入 Babel 用於解析 JSX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; -webkit-font-smoothing: antialiased; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        @media screen { .print-only-wrapper { display: none !important; } }
+        
+        @media print {
+            @page { size: A4 portrait; margin: 0 !important; }
+            html, body { 
+                height: 100% !important; margin: 0 !important; padding: 0 !important; 
+                overflow: hidden !important; background: white !important; 
+            }
+            #root { height: 100% !important; overflow: hidden !important; }
+            .no-print { display: none !important; }
+            .print-only-wrapper { 
+                display: flex !important; justify-content: center; align-items: flex-start;
+                width: 100vw !important; height: 100vh !important; 
+                margin: 0 !important; padding: 0 !important; background: white !important;
+                position: absolute; top: 0; left: 0;
+            }
+            .certificate-container {
+                width: 210mm !important; 
+                height: 278mm !important; 
+                max-height: 278mm !important;
+                padding: 12mm !important; 
+                border: 15pt solid #dc2626 !important;
+                box-sizing: border-box !important; 
+                position: relative;
+                overflow: hidden;
+                background-color: #FCFAF0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+            }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+    </style>
+</head>
+<body class="bg-[#FDFCF0]">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef } = React;
+        
+        // 自定義 SVG 圖標組件，完全取代外部 Lucide 庫以解決載入錯誤
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const icons = {
+                BookOpen: (
+                    <>
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                    </>
+                ),
+                ChevronLeft: <path d="m15 18-6-6 6-6" />,
+                ChevronRight: <path d="m9 18 6-6-6-6" />,
+                Download: (
+                    <>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                    </>
+                ),
+                Send: (
+                    <>
+                        <path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" />
+                    </>
+                ),
+                User: (
+                    <>
+                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                    </>
+                ),
+                Mail: (
+                    <>
+                        <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                    </>
+                ),
+                Hash: (
+                    <>
+                        <line x1="4" x2="20" y1="9" y2="9" /><line x1="4" x2="20" y1="15" y2="15" /><line x1="10" x2="8" y1="3" y2="21" /><line x1="16" x2="14" y1="3" y2="21" />
+                    </>
+                ),
+                School: (
+                    <>
+                        <path d="M22 10v6M2 10l10-5 10 5-10 5z" /><path d="M6 12v5c3 3 9 3 12 0v-5" />
+                    </>
+                ),
+                CheckCircle2: (
+                    <>
+                        <circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" />
+                    </>
+                ),
+                AlertCircle: (
+                    <>
+                        <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
+                    </>
+                ),
+                Loader2: (
+                    <>
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                    </>
+                ),
+                RefreshCcw: (
+                    <>
+                        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 21v-5h5" />
+                    </>
+                ),
+                Calendar: (
+                    <>
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" />
+                    </>
+                ),
+                Tag: (
+                    <>
+                        <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" /><path d="M7 7h.01" />
+                    </>
+                ),
+                Flower2: (
+                    <>
+                        <path d="M12 5a3 3 0 1 0-5.94 1.1A3 3 0 1 0 5.1 12 3 3 0 1 0 6.16 17.94 3 3 0 1 0 12 21a3 3 0 1 0 5.84-1.06 3 3 0 1 0 1.06-5.84A3 3 0 1 0 17.9 6.16 3 3 0 1 0 12 5Z" /><circle cx="12" cy="12" r="2" />
+                    </>
+                ),
+                Sparkles: (
+                    <>
+                        <path d="m12 3 1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3Z" /><path d="M5 3v4M3 5h4M19 17v4M17 19h4" />
+                    </>
+                ),
+                Medal: (
+                    <>
+                        <path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15" /><path d="M11 12 5.1 2" /><path d="m13 12 5.9-10" /><circle cx="12" cy="15" r="5" /><circle cx="12" cy="15" r="2" />
+                    </>
+                ),
+                Trophy: (
+                    <>
+                        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                    </>
+                ),
+                X: (
+                    <>
+                        <path d="M18 6 6 18M6 6l12 12" />
+                    </>
+                ),
+                ExternalLink: (
+                    <>
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" x2="21" y1="14" y2="3" />
+                    </>
+                ),
+                ScrollText: (
+                    <>
+                        <path d="M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4" /><path d="M19 17V5a2 2 0 0 0-2-2H4" /><path d="M15 8h-5" /><path d="M15 12h-5" />
+                    </>
+                )
+            };
+
+            return (
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`${className} ${name === 'Loader2' ? 'animate-spin' : ''}`}
+                >
+                    {icons[name] || <circle cx="12" cy="12" r="10" />}
+                </svg>
+            );
+        };
+
+        // --- 教師核心設定區 ---
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby-D18aedSL1iF5Vx5iNg_7dM6XcjdXOEAwGYtn_IARZ80s8NzWnEACP3FvcXd586pm/exec"; 
+        const CLOUD_CSV_URL = "https://docs.google.com/spreadsheets/d/15dYVYcruk1FcZ6l4ITIJeufNrSU0vGf6Ad2uAuOSrDs/export?format=csv"; 
+
+        const getRankInfo = (score) => {
+            if (score === 100) return { title: "【國考狀元 · 翰林大宗師】", desc: "才高八斗，冠絕古今，文曲星下凡之才。", color: "text-red-600" };
+            if (score >= 90) return { title: "【進士及第 · 文壇領袖】", desc: "筆力萬鈞，學富五車，當代儒學之典範。", color: "text-amber-600" };
+            if (score >= 80) return { title: "【舉人公 · 舉世聞名】", desc: "博學多聞，卓爾不群，名震鄉里之良才。", color: "text-blue-600" };
+            if (score >= 70) return { title: "【資優秀才 · 國子監生】", desc: "勤學苦讀，根基紮實，假以時日必成大器。", color: "text-teal-600" };
+            if (score >= 60) return { title: "【勤學童生 · 儒林之芽】", desc: "略有小成，尚需磨練，百尺竿頭更進一步。", color: "text-slate-600" };
+            return { title: "【江湖浪子 · 瀟灑隱士】", desc: "志不在考場，胸懷四海，大智若愚之逸才。", color: "text-slate-400" };
+        };
+
+        const StableInput = ({ defaultValue, onFinalChange, placeholder, className, type = "text", iconName }) => {
+            const inputRef = useRef(null);
+            const handleCommit = () => { if (inputRef.current) onFinalChange(inputRef.current.value); };
+            return (
+                <div className="relative w-full group text-left">
+                    {iconName && <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors z-10"><Icon name={iconName} size={18} /></div>}
+                    <input 
+                        ref={inputRef} type={type} defaultValue={defaultValue || ''} placeholder={placeholder} 
+                        className={`w-full box-border border-none outline-none focus:ring-0 ${className} ${iconName ? 'pl-11' : ''}`} 
+                        onBlur={handleCommit} 
+                        onKeyDown={(e) => { if (e.key === 'Enter') { handleCommit(); e.target.blur(); } }} 
+                        autoComplete="off" 
+                    />
+                </div>
+            );
+        };
+
+        function App() {
+            const [view, setView] = useState('login'); 
+            const [loading, setLoading] = useState(true);
+            const [submitting, setSubmitting] = useState(false);
+            const [studentInfo, setStudentInfo] = useState({ class: '', seat: '', name: '', email: '' });
+            const [quizData, setQuizData] = useState([]);
+            const [quizTheme, setQuizTheme] = useState('載入中...');
+            const [quizDate, setQuizDate] = useState('');
+            const [answers, setAnswers] = useState({});
+            const [results, setResults] = useState(null);
+            const [currentIdx, setCurrentIdx] = useState(0);
+            const [msg, setMsg] = useState(null);
+            const [showLeaderboard, setShowLeaderboard] = useState(false);
+            const [leaderboardData, setLeaderboardData] = useState([]);
+            const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+
+            const showMsg = (text) => { setMsg(text); setTimeout(() => setMsg(null), 4000); };
+
+            useEffect(() => {
+                const fetchData = async () => {
+                    try {
+                        const res = await fetch(CLOUD_CSV_URL);
+                        const text = await res.text();
+                        const rows = text.split(/\r?\n/).filter(line => line.trim() !== "");
+                        const delimiter = text.includes('\t') ? '\t' : ',';
+                        if (rows.length > 1) {
+                            const firstRow = rows[1].split(delimiter).map(col => col.replace(/^"|"$/g, '').trim());
+                            setQuizDate(firstRow[0] || '今日');
+                            setQuizTheme(firstRow[1] || '國文專題測驗');
+                            const data = rows.slice(1).map(row => {
+                                const columns = row.split(delimiter).map(col => col.replace(/^"|"$/g, '').trim());
+                                const rawText = columns[3] || "";
+                                const optRegex = /\s*[\(\（][A-DＡ-Ｄ][\)\）]\s*/g;
+                                const parts = rawText.split(optRegex);
+                                const parsed = (parts && parts.length >= 5) ? { 
+                                    stem: parts[0].trim(), 
+                                    options: { 'A': parts[1].trim(), 'B': parts[2].trim(), 'C': parts[3].trim(), 'D': parts[4].trim() } 
+                                } : { stem: rawText, options: null };
+
+                                return { 
+                                    ...parsed, 
+                                    answer: (columns[4] || "").toUpperCase().replace(/[ＡＢＣＤ]/g, s => String.fromCharCode(s.charCodeAt(0) - 65248)), 
+                                    explanation: columns[5] || "解析編寫中。" 
+                                };
+                            }).filter(item => item.stem && item.answer);
+                            setQuizData(data);
+                        }
+                        setLoading(false);
+                    } catch (err) { setQuizTheme("資料讀取失敗"); setLoading(false); }
+                };
+                fetchData();
+            }, []);
+
+            const handleFinalAction = async () => {
+                if (!studentInfo.email || !studentInfo.email.includes('@')) { showMsg('請輸入正確的 Email 以接收解析報告'); return; }
+                setSubmitting(true);
+                const scorePerQuestion = 100 / quizData.length;
+                let correctCount = 0;
+                const detailResults = quizData.map((q, idx) => {
+                    const studentAnswer = answers[idx] || '未答';
+                    const isCorrect = studentAnswer === q.answer;
+                    if (isCorrect) correctCount++;
+                    return { ...q, studentAnswer, isCorrect };
+                });
+                const finalScore = Math.round(correctCount * scorePerQuestion);
+                const wrongIndices = detailResults.map((d, i) => d.isCorrect ? null : i + 1).filter(n => n !== null).join(', ');
+                
+                const emailDetails = detailResults.filter(d => !d.isCorrect).map((d) => {
+                    const idx = detailResults.indexOf(d) + 1;
+                    const optText = d.options ? `\n(A) ${d.options.A} \n(B) ${d.options.B} \n(C) ${d.options.C} \n(D) ${d.options.D}` : "";
+                    return `【第 ${idx} 題】\n題目：${d.stem}${optText}\n您的作答：${d.studentAnswer}\n正確答案：${d.answer}\n解析：${d.explanation || "無"}`;
+                }).join('\n\n' + '-'.repeat(30) + '\n\n');
+
+                const payload = { 
+                    ...studentInfo, score: finalScore, date: new Date().toLocaleString('zh-TW'), 
+                    wrongQuestions: wrongIndices || "全對", details: emailDetails, quizName: quizTheme 
+                };
+
+                try {
+                    await fetch(GAS_WEB_APP_URL, { 
+                        method: 'POST', mode: 'no-cors', 
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify(payload) 
+                    });
+                    setResults({ ...payload, detailsData: detailResults, rank: getRankInfo(finalScore) });
+                    setView('results');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } catch (e) { 
+                    setResults({ ...payload, detailsData: detailResults, rank: getRankInfo(finalScore) }); 
+                    setView('results'); 
+                } 
+                finally { setSubmitting(false); }
+            };
+
+            const fetchLeaderboard = async () => {
+                setLoadingLeaderboard(true); setShowLeaderboard(true);
+                try {
+                    const res = await fetch(`${GAS_WEB_APP_URL}?theme=${encodeURIComponent(quizTheme)}`);
+                    const data = await res.json();
+                    setLeaderboardData(Array.isArray(data) ? data.slice(0, 10) : []);
+                } catch (e) { showMsg("目前無法讀取排行榜資料"); } finally { setLoadingLeaderboard(false); }
+            };
+
+            const handlePrint = () => {
+                const isLine = /Line/i.test(navigator.userAgent);
+                if (isLine) { showMsg("LINE 環境限制下載，請點選右上角 [以瀏覽器開啟] 後重新操作。"); return; }
+                window.focus();
+                window.print();
+            };
+
+            const LoginView = () => (
+                <div className="flex flex-col items-center justify-center min-h-[85vh] px-4 py-8 relative text-slate-900">
+                    <div className="absolute top-10 right-10 opacity-10 pointer-events-none"><Icon name="Flower2" size={120} className="text-red-500" /></div>
+                    <div className="absolute bottom-20 left-10 opacity-10 pointer-events-none"><Icon name="Sparkles" size={100} className="text-amber-500" /></div>
+                    <div className="text-center mb-8 relative z-10 w-full max-w-lg">
+                        <div className="bg-white w-24 h-24 rounded-full flex items-center justify-center mx-auto border-4 border-red-600 shadow-xl mb-6 text-red-600 shadow-red-200"><Icon name="BookOpen" size={48} /></div>
+                        <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+                            <span className="bg-white text-slate-800 px-4 py-1.5 rounded-full text-sm font-bold border-2 border-slate-200 shadow-sm flex items-center gap-1"><Icon name="Calendar" size={14} className="text-red-600" /> {quizDate}</span>
+                            <span className="bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-md flex items-center gap-1"><Icon name="Tag" size={14} /> {quizTheme}</span>
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-black mb-3 tracking-tighter">國文科雲端測驗</h1>
+                        <p className="text-slate-500 font-medium text-lg italic tracking-wider">一期一會，全力以赴的智慧挑戰</p>
+                    </div>
+                    <div className="w-full max-w-md bg-white p-6 md:p-10 rounded-[2.5rem] border-t-8 border-red-600 shadow-2xl relative z-10 mx-auto">
+                        <div className="flex flex-col gap-5">
+                            <div className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl overflow-hidden shadow-inner">
+                                <StableInput iconName="School" placeholder="班級 (如: 101)" className="px-5 py-4 text-slate-900 font-bold bg-transparent" defaultValue={studentInfo.class} onFinalChange={v => setStudentInfo(p => ({...p, class: v}))} />
+                            </div>
+                            <div className="flex flex-row gap-4 w-full">
+                                <div className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl overflow-hidden shadow-inner">
+                                    <StableInput iconName="Hash" placeholder="座號" className="px-5 py-4 text-slate-900 font-bold bg-transparent w-full" defaultValue={studentInfo.seat} onFinalChange={v => setStudentInfo(p => ({...p, seat: v}))} />
+                                </div>
+                                <div className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-2xl overflow-hidden shadow-inner">
+                                    <StableInput iconName="User" placeholder="姓名" className="px-5 py-4 text-slate-900 font-bold bg-transparent w-full" defaultValue={studentInfo.name} onFinalChange={v => setStudentInfo(p => ({...p, name: v}))} />
+                                </div>
+                            </div>
+                            <button disabled={loading || !studentInfo.name || !studentInfo.class} onClick={() => setView('quiz')} className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-5 rounded-2xl mt-2 active:scale-95 transition-all text-xl shadow-lg flex items-center justify-center gap-3 shadow-red-200">參上！開始測驗 <Icon name="ChevronRight" size={24} /></button>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const QuizView = () => {
+                const q = quizData[currentIdx];
+                const progress = ((currentIdx + 1) / quizData.length) * 100;
+                return (
+                    <div className="max-w-4xl mx-auto py-10 px-4">
+                        <div className="mb-12 text-slate-900">
+                            <div className="flex justify-between items-end mb-4">
+                                <span className="bg-red-50 text-red-600 px-4 py-1.5 rounded-full text-sm border border-red-100 font-bold">{quizTheme}</span>
+                                <p className="text-2xl md:text-4xl font-bold">{currentIdx + 1}<span className="text-slate-300 text-xl font-normal mx-2">/</span>{quizData.length}</p>
+                            </div>
+                            <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                                <div className="h-full bg-red-600 rounded-full transition-all duration-700" style={{ width: `${progress}%` }}></div>
+                            </div>
+                        </div>
+                        <div className="bg-white border-2 border-slate-100 p-8 md:p-14 rounded-[3.5rem] shadow-xl text-slate-900">
+                            <div className="min-h-[420px] flex flex-col justify-between text-left">
+                                <div>
+                                    <h3 className="text-2xl md:text-4xl font-bold mb-12 leading-relaxed tracking-tight"><span className="text-red-600 mr-2 font-black">第 {currentIdx + 1} 題．</span>{q?.stem}</h3>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {['A', 'B', 'C', 'D'].map(opt => (
+                                            <button key={opt} onClick={() => setAnswers({...answers, [currentIdx]: opt})} className={`group p-6 rounded-2xl border-2 text-left flex items-start gap-6 transition-all ${answers[currentIdx] === opt ? 'bg-red-600 border-red-600 text-white font-bold scale-[1.02] shadow-xl shadow-red-200' : 'bg-white border-slate-100 hover:border-red-200'}`}>
+                                                <span className={`w-12 h-12 shrink-0 rounded-xl flex items-center justify-center font-black text-lg md:text-xl ${answers[currentIdx] === opt ? 'bg-white text-red-600' : 'bg-slate-100 text-slate-400'}`}>{opt}</span>
+                                                <span className="text-lg md:text-2xl leading-snug py-1 font-bold">{q?.options?.[opt]}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex flex-col sm:flex-row justify-between items-center mt-16 pt-8 border-t border-slate-100 gap-6 font-bold">
+                                    <button disabled={currentIdx === 0} onClick={() => setCurrentIdx(p => p - 1)} className="flex items-center gap-2 text-slate-400 hover:text-red-600 px-4 py-2 text-lg disabled:opacity-0 transition-colors"><Icon name="ChevronLeft" size={24} /> 前一題</button>
+                                    {currentIdx === quizData.length - 1 ? (
+                                        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                                            <div className="bg-slate-50 border-2 border-slate-200 rounded-xl overflow-hidden w-full sm:w-72 shadow-inner">
+                                                <StableInput iconName="Mail" placeholder="Email 接收報告" className="px-4 py-3 md:py-4 text-slate-900 font-bold bg-transparent" defaultValue={studentInfo.email} onFinalChange={v => setStudentInfo(p => ({...p, email: v}))} />
+                                            </div>
+                                            <button disabled={submitting} onClick={handleFinalAction} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 px-10 py-4 rounded-xl font-black text-white shadow-xl flex items-center justify-center gap-3 text-lg disabled:opacity-50 transition-all active:scale-95">{submitting ? <Icon name="Loader2" size={24} /> : <Icon name="Send" size={24} />} 提交卷軸</button>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => setCurrentIdx(p => p + 1)} className="w-full sm:w-auto text-red-600 font-black flex items-center justify-center gap-2 hover:translate-x-2 transition-transform bg-red-50 px-10 py-4 rounded-2xl border-2 border-red-100 text-lg">下一題 <Icon name="ChevronRight" size={24} /></button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            const ResultsView = () => {
+                const rank = results.rank;
+                return (
+                    <div className="max-w-4xl mx-auto py-10 px-4 print:p-0">
+                        {showLeaderboard && (
+                            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md no-print">
+                                <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                                    <div className="bg-red-600 p-6 flex justify-between items-center text-white font-black text-xl shadow-lg relative z-10"><div className="flex items-center gap-3"><Icon name="Trophy" size={28} /> 修練前十強</div><button onClick={() => setShowLeaderboard(false)} className="bg-white/20 p-1 rounded-full hover:bg-white/30 transition-all"><Icon name="X" size={24} /></button></div>
+                                    <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50 text-slate-900 custom-scrollbar">
+                                        {loadingLeaderboard ? <div className="text-center py-20 font-bold text-lg"><Icon name="Loader2" size={48} className="mx-auto mb-4" />翻閱名冊中...</div> : leaderboardData.length === 0 ? <div className="text-center py-20 text-slate-400 font-bold">目前暫無紀錄</div> : leaderboardData.map((item, idx) => (
+                                            <div key={idx} className={`flex items-center gap-4 p-4 rounded-xl border-2 mb-3 bg-white ${idx === 0 ? 'border-amber-300 bg-amber-50/50' : 'border-slate-100 shadow-sm'}`}>
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${idx === 0 ? 'bg-amber-400 text-white shadow-md' : idx === 1 ? 'bg-slate-300 text-white shadow-md' : idx === 2 ? 'bg-orange-300 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>{idx + 1}</div>
+                                                <div className="flex-1 font-bold text-slate-900 text-left"><p className="font-black md:text-lg">{item.name}</p><p className="text-[10px] md:text-xs text-slate-400">{item.class} 班 {item.seat} 號</p></div>
+                                                <div className="text-xl md:text-2xl font-black text-red-600 italic font-mono">{item.score}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="p-4 bg-white text-center text-slate-400 font-bold text-xs border-t border-slate-100 italic tracking-widest uppercase">僅列出前十強精英</div>
+                                </div>
+                            </div>
+                        )}
+                        <div className="bg-white border-2 border-slate-200 rounded-[2.5rem] md:rounded-[3.5rem] overflow-hidden shadow-2xl print:border-0 print:shadow-none relative mx-auto max-w-full no-print">
+                            <div className="bg-red-600 p-10 md:p-16 text-center text-white relative border-b-8 border-red-800">
+                                <Icon name="Medal" size={150} className="absolute top-0 right-0 opacity-10 hidden md:block" />
+                                <p className="font-bold tracking-widest uppercase text-xs md:text-sm mb-4">Final Score Result</p>
+                                <h2 className="text-7xl md:text-9xl font-black mb-6 tracking-tighter font-serif underline decoration-red-800 underline-offset-8 decoration-4">{results.score}</h2>
+                                <div className="text-white text-lg md:text-2xl font-black mt-2 bg-black/20 px-8 md:px-10 py-3 md:py-4 rounded-full inline-block border border-white/10 backdrop-blur-sm shadow-inner">{rank.title}</div>
+                            </div>
+                            <div className="p-8 md:p-16">
+                                <div className="flex flex-col gap-4 mb-10">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                                        <button onClick={handlePrint} className="bg-slate-900 text-white hover:bg-black py-5 rounded-2xl font-black flex items-center justify-center gap-3 transition-all text-lg shadow-xl active:scale-95"><Icon name="Download" size={24} /> 下載證書 (PDF)</button>
+                                        <button onClick={fetchLeaderboard} className="bg-red-600 text-white hover:bg-red-700 py-5 rounded-2xl font-black flex items-center justify-center gap-3 transition-all text-lg shadow-xl active:scale-95"><Icon name="Trophy" size={24} /> 排行榜</button>
+                                    </div>
+                                    <button onClick={() => window.location.reload()} className="w-full bg-white hover:bg-slate-50 py-5 rounded-2xl font-black border-2 border-slate-200 flex items-center justify-center gap-3 text-slate-500 text-lg shadow-md transition-all active:scale-95"><Icon name="RefreshCcw" size={24} /> 重新測驗</button>
+                                </div>
+                                <div className="mb-10 bg-blue-50 border-2 border-blue-200 p-6 rounded-[2rem] text-blue-900 shadow-sm text-left font-bold">
+                                    <div className="flex items-center gap-3 mb-2 font-black text-lg border-b border-blue-200 pb-2"><Icon name="ExternalLink" size={24} /> 下載指引</div>
+                                    <ul className="text-sm space-y-2 leading-relaxed">
+                                        <li>• <b>電腦端：</b>列印時請選擇「<b>另存為 PDF</b>」並勾選「<b>背景圖形</b>」。</li>
+                                        <li>• <b>手機/LINE：</b>若無下載反應，請選取右上角 [<b>以瀏覽器開啟</b>] 後重新操作。</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="print-only-wrapper">
+                            <div className="certificate-container border-[12pt] border-red-600 p-6 text-center relative flex flex-col justify-between bg-[#FCFAF0]">
+                                <Icon name="Flower2" size={100} className="absolute top-6 left-6 opacity-20 text-red-800" />
+                                <Icon name="Sparkles" size={100} className="absolute bottom-6 right-6 opacity-20 text-amber-600" />
+                                <div className="mt-8 md:mt-10 text-slate-900">
+                                    <div className="text-red-700 font-serif text-6xl font-black mb-8 tracking-[0.4em] border-b-4 border-red-700 inline-block pb-4 px-10 uppercase font-black">闖關證書</div>
+                                    <div className="text-slate-800 text-xl md:text-2xl font-bold mt-10 md:mt-12 leading-relaxed font-serif font-bold">茲證明 <span className="text-4xl md:text-5xl border-b-2 border-slate-800 px-4 md:px-6 font-black mx-1 underline underline-offset-4">{studentInfo.name}</span> 同學<br /><br /><br />參與國文科雲端專題測驗：<br /><span className="text-red-700 font-black text-2xl md:text-3xl my-3 block tracking-wider italic">《{results.quizName}》</span>表現卓越，獲得總分 <span className="text-3xl md:text-4xl text-red-600 font-black mx-1 underline underline-offset-4">{results.score}</span> 分，<br /><br />榮獲本系統授予之最高榮譽身分：</div>
+                                    <div className="mt-8 md:mt-10 flex flex-col items-center">
+                                        <div className={`text-3xl md:text-5xl font-black p-8 md:p-10 rounded-[2.5rem] border-[4pt] border-red-700 bg-white shadow-2xl ${rank.color} font-black`}>{rank.title}</div>
+                                        <div className="text-slate-500 text-lg md:text-xl font-bold mt-8 italic tracking-widest bg-slate-100 px-6 py-1.5 rounded-full shadow-inner font-bold font-serif">「{rank.desc}」</div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-end border-t-2 border-slate-200 pt-6 px-4 md:px-10 mb-4 text-slate-400 font-bold text-xs md:text-sm uppercase font-serif font-black">
+                                    <div className="tracking-widest font-black">{results.date}</div>
+                                    <div className="text-right">
+                                        <div className="text-[9pt] tracking-widest font-bold uppercase mb-1 opacity-60 font-black">Design & Development</div>
+                                        <div className="text-slate-900 font-black text-xs md:text-base tracking-tighter font-black">高雄市立三民家商國文科黃一軒設計</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="no-print mt-16 pt-16 border-t border-slate-200 text-slate-900 text-left">
+                            <h3 className="text-2xl font-black mb-8 flex items-center gap-2 font-serif tracking-widest italic border-l-8 border-red-600 pl-4 uppercase text-slate-900 font-bold"><Icon name="ScrollText" size={24} /> 測驗詳細分析 (僅供線上複習)</h3>
+                            <div className="space-y-10">{results.detailsData.map((item, idx) => (
+                                <div key={idx} className="relative border-b-2 border-slate-100 pb-10 last:border-0 animate-in fade-in duration-500 text-slate-900">
+                                    <div className="flex items-start gap-4 md:gap-8">
+                                        <span className={`w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-2xl flex items-center justify-center font-mono text-lg md:text-2xl font-black shadow-sm ${item.isCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{idx + 1}</span>
+                                        <div className="flex-1 text-slate-900 font-bold">
+                                            <p className="text-xl md:text-2xl font-black mb-6 leading-relaxed tracking-tight text-slate-900">{item.stem}</p>
+                                            <div className="grid grid-cols-1 gap-3 mb-6 font-bold text-slate-900">
+                                                {['A', 'B', 'C', 'D'].map(o => (
+                                                    <div key={o} className={`p-4 rounded-xl text-lg border-2 flex items-center justify-between font-bold ${item.answer === o ? 'bg-green-50 border-green-500 text-green-700' : item.studentAnswer === o ? 'bg-red-50 border-red-500 text-red-700' : 'bg-white border-slate-100 shadow-sm text-slate-900'}`}>
+                                                        <span>({o}) {item?.options?.[o]}</span>
+                                                        <div className="flex gap-2 text-xs shrink-0 font-black font-bold">
+                                                            {item.studentAnswer === o && <span className="bg-red-600 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">您的回答</span>}
+                                                            {item.answer === o && <span className="bg-green-600 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">正確答案</span>}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {!item.isCorrect && (<div className="mt-4 p-6 bg-amber-50 rounded-2xl border-l-8 border-red-600 shadow-inner font-bold border-amber-100 text-slate-800 text-left font-bold"><span className="text-red-700 font-black block mb-2 uppercase text-sm tracking-widest flex items-center gap-2 font-serif font-bold"><Icon name="Sparkles" size={18} /> 解析說明</span><p className="italic text-lg leading-relaxed font-bold font-serif">{item.explanation}</p></div>)}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}</div>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen selection:bg-red-600/10 overflow-x-hidden font-bold">
+                    <main className="pb-16 md:pb-24">
+                        {view === 'login' && <LoginView />}
+                        {view === 'quiz' && <QuizView />}
+                        {view === 'results' && <ResultsView />}
+                    </main>
+                    {msg && (
+                        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl z-[300] flex items-center gap-3 animate-in slide-in-from-bottom-5 font-black border-t-4 border-red-600">
+                            <Icon name="AlertCircle" size={20} className="text-red-500" /> {msg}
+                        </div>
+                    )}
+                    <footer className="w-full text-center py-8 md:py-12 text-slate-400 font-bold border-t border-slate-200/50 relative z-10 no-print">
+                        <div className="flex items-center justify-center gap-3 mb-2 opacity-50"><Icon name="Flower2" size={16} className="text-red-500" /><span className="text-xs tracking-widest uppercase font-bold">Literature Quiz System</span><Icon name="Flower2" size={16} className="text-red-500" /></div>
+                        <p className="text-sm md:text-lg tracking-widest font-black text-slate-900/40 uppercase font-serif font-bold">高雄市立三民家商國文科黃一軒設計</p>
+                    </footer>
+                </div>
+            );
+        }
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
